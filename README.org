@@ -1289,7 +1289,17 @@ image with the request:
 #+begin_src
 In this yaml file, I have some key-remapping configuration:
 
-[[file:/path/to/remap.yaml]]
+- In Markdown mode:
+  + =[](file:///path/to/file.txt)= and =[](/path/to/file.txt)=
+  + =[Description](file:///path/to/file.txt)= and =[Description](/path/to/file.txt)=
+  + =<file:///path/to/file.txt>=
+  "Plain" links of the form =file:///path/to/file.txt= will not be recognized.
+- In Org mode:
+  + =[[file:/path/to/file.txt]]= 
+  + =[[file:/path/to/file.txt][Description]]=
+  + =<file:/path/to/file.txt>=
+  + =[[attachment:data.txt]]=
+  "Plain" links of the form =file:/path/to/file.txt= will not be recognized.
 
 Could you explain what it does, and which program might be using it?
 #+end_src
@@ -2037,7 +2047,9 @@ making it easy to use and spot.
 
 ** Alternatives
 
-Other Emacs clients for LLMs include
+Other LLM clients for Emacs include
+
+*Libraries*:
 
 - [[https://github.com/ahyatt/llm][llm]]: llm provides a uniform API across
   language model providers for building LLM clients in Emacs, and is intended as
@@ -2062,6 +2074,17 @@ There are several more: [[https://github.com/iwahbe/chat.el][chat.el]],
 [[https://github.com/stuhlmueller/gpt.el][gpt.el]],
 [[https://github.com/AnselmC/le-gpt.el][le-gpt]],
 [[https://github.com/stevemolitor/robby][robby]].
+
+*Coding agents*:
+
+- [[https://github.com/manzaltu/claude-code-ide.el][claude-code-ide]] and [[https://github.com/stevemolitor/claude-code.el][claude-code.el]]: Emacs interfaces to Claude Code.
+- [[https://github.com/xenodium/agent-shell][agent-shell]]: Emacs interface to various coding agents, like Claude Code, Gemini, Codex, Opencode, Goose and more.
+- [[https://github.com/MatthewZMD/aidermacs][Aidermacs]] and [[https://github.com/tninja/aider.el][aider.el]]: Emacs interfaces to [[https://aider.chat/][Aider]].
+
+*Completion at point*:
+
+- [[https://github.com/copilot-emacs/copilot.el][copilot.el]]: Code completion using Copilot.
+- [[https://github.com/milanglacier/minuet-ai.el][Minuet]]: Code-completion using LLM. Supports fill-in-the-middle (FIM) completion for compatible models such as DeepSeek and Codestral.
 
 *** Packages using gptel
 

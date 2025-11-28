@@ -50,10 +50,10 @@
 Affects the system message too.")
 
 (defun gptel--set-with-scope (sym value &optional scope)
-  "Set SYMBOL's symbol-value to VALUE with SCOPE.
+  "Set SYM's symbol value to VALUE with SCOPE.
 
 If SCOPE is t, set it buffer-locally.
-If SCOPE is 1, reset it after the next gptel-request. (oneshot)
+If SCOPE is 1, reset it after the next gptel request.  (oneshot)
 Otherwise, clear any buffer-local value and set its default
 global value."
   (pcase scope
@@ -89,6 +89,8 @@ For internal use only.")
          ((memq key '(:description :parents)) 'nil)
          ((eq key :system)
           (or (equal gptel--system-message val)
+              (functionp val)    ; Ignore functions, modify-specs for speed here
+              (and (consp val) (keywordp (car val)))
               (and-let* (((symbolp val))
                          (p (assq val gptel-directives)))
                 (equal gptel--system-message (cdr p)))
@@ -99,18 +101,22 @@ For internal use only.")
                 (eq gptel-backend val))
               (throw 'mismatch t)))
          ((eq key :tools)
-          (if (eq (car-safe val) :append)
-              (cl-loop for name in (cdr val) ;preset tools contained in gptel-tools
-                       unless (memq (gptel-get-tool name) gptel-tools)
-                       do (throw 'mismatch t))
-            (or (equal (sort val #'string-lessp) ;preset tools same as gptel-tools
-                       (sort (mapcar #'gptel-tool-name gptel-tools)
-                             #'string-lessp))
-                (throw 'mismatch t))))
+          (setq val (cl-loop ; Check against tool names, not tools (faster with sorting)
+                     for tool in (ensure-list (gptel--modify-value gptel-tools val))
+                     for tool-name = (or (and (stringp tool) tool)
+                                         (ignore-errors (gptel-tool-name tool)))
+                     if (not (member tool-name uniq-tool-names))
+                     collect tool-name into uniq-tool-names
+                     finally return uniq-tool-names))
+          (or (equal (sort val #'string-lessp) ;preset tools same as gptel-tools?
+                     (sort (mapcar #'gptel-tool-name gptel-tools)
+                           #'string-lessp))
+              (throw 'mismatch t)))
          (t (let* ((suffix (substring
                             (if (symbolp key) (symbol-name key) key) 1))
                    (sym (or (intern-soft (concat "gptel-" suffix))
                             (intern-soft (concat "gptel--" suffix)))))
+              ;; FIXME(modify-list): Fix for values specified with a spec, like :eval
               (or (null sym)
                   (and (boundp sym) (equal (eval sym) val))
                   (throw 'mismatch t)))))))))
@@ -159,7 +165,7 @@ Meant to be called when `gptel-menu' is active."
    (propertize "/" 'face 'default)
    (propertize "M-p" 'face 'help-key-binding)
    (propertize ": next/previous" 'face 'default))
-  "Help string ;TODO: ")
+  "Help string (TODO).")
 
 (defun gptel--read-with-prefix (prefix)
   "Show string PREFIX in the minibuffer after the minibuffer prompt.
@@ -167,7 +173,7 @@ Meant to be called when `gptel-menu' is active."
 PREFIX is shown in an overlay.  Repeated calls to this function
 will toggle its visibility state."
   (unless (minibufferp)
-    (user-error "This command is intended to be used in the minibuffer."))
+    (user-error "This command is intended to be used in the minibuffer"))
   (let* ((update
          (lambda (ov s)
            (overlay-put
@@ -312,7 +318,7 @@ Handle formatting for system messages when the active
       "[No system message set]")))
 
 (defun gptel--tools-init-value (obj)
-  "Set the initial state of a tool OBJ in `gptel-tools'.
+  "Set the initial state of a tool OBJ in variable `gptel-tools'.
 
 OBJ is a tool-infix of type `gptel--switch'."
   (when-let* ((name (car (member (oref obj argument)
@@ -387,16 +393,19 @@ which see."
 	      (forward-line 1)))))
     gptel--crowdsourced-prompts))
 
+;; FIXME(targeted-context): This does not handle :bounds and :lines.
 (defun gptel--describe-infix-context ()
+  "Return a count of the number of context chunks."
   (if (null gptel-context) "Context"
     (pcase-let*
         ((buffer-count (length gptel-context))
          (`(,file-count ,ov-count)
           (if (> buffer-count 0)
               (cl-loop for entry in gptel-context
-                       for (buf-file . ovs) = (ensure-list entry)
+                       for (buf-file . spec) = (ensure-list entry)
                        if (bufferp buf-file)
-                       sum (if ovs (length ovs) 1) into ov-count
+                       sum (max (length (plist-get spec :overlays)) 1)
+                       into ov-count
                        else count (stringp buf-file) into file-count
                        finally return (list file-count ov-count))
             (list 0 0))))
@@ -530,6 +539,7 @@ which see."
                                   ('t "buffer-locally")
                                   (_ "globally")))
                         gptel--known-presets nil t)))))
+  (gptel--set-with-scope 'gptel--preset name gptel--set-buffer-locally)
   (gptel--apply-preset
    name (lambda (sym val)
           (gptel--set-with-scope sym val gptel--set-buffer-locally)))
@@ -647,10 +657,10 @@ Their own value is ignored")
 (defclass gptel--switches (gptel-lisp-variable)
   ((display-if-true :initarg :display-if-true :initform "True")
    (display-if-false :initarg :display-if-false :initform "False"))
-  "Boolean lisp variable class for gptel-transient.")
+  "Boolean Lisp variable class for gptel-transient.")
 
 (cl-defmethod transient-infix-read ((obj gptel--switches))
-  "Cycle through the mutually exclusive switches."
+  "Cycle through the mutually exclusive switches for OBJ."
   (not (oref obj value)))
 
 (cl-defmethod transient-format-value ((obj gptel--switches))
@@ -669,12 +679,12 @@ Their own value is ignored")
 (defclass gptel--scope (gptel--switches)
   ((display-if-true :initarg :display-if-true :initform "buffer")
    (display-if-false :initarg :display-if-false :initform "global"))
-  "Singleton lisp variable class for `gptel--set-buffer-locally'.
+  "Singleton Lisp variable class for `gptel--set-buffer-locally'.
 
 This is used only for setting this variable via `gptel-menu'.")
 
 (cl-defmethod transient-infix-read ((obj gptel--scope))
-  "Cycle through the mutually exclusive switches."
+  "Cycle through the mutually exclusive switches for OBJ."
   (with-slots (value) obj
     (pcase value
       ('t (message "Parameters will be set for the next request only"))
@@ -739,7 +749,7 @@ This is used only for setting this variable via `gptel-menu'.")
 (cl-defmethod transient-format-value ((obj gptel-option-overlaid))
   "Set up the in-buffer overlay for additional directive, a string.
 
-Also format its value in the Transient menu."
+Also format the value of OBJ in the transient menu."
   (let ((value (oref obj value))
         (ov    (oref obj overlay))
         (argument (oref obj argument)))
@@ -908,13 +918,19 @@ Also format its value in the Transient menu."
   [(gptel--suffix-send)]
   (interactive)
   (gptel--sanitize-model)
+  (when gptel-context        ;MAYBE: Move this to a dedicated sanitize function?
+    (setq gptel-context
+          (cl-delete-if
+           (lambda (entry)
+             (let ((first (or (car-safe entry) entry)))
+               (and (bufferp first) (not (buffer-live-p first)))))
+           gptel-context)))
   (transient-setup 'gptel-menu))
 
 ;; ** Prefix for setting the system prompt.
 
 (defun gptel--setup-directive-menu (sym msg &optional external)
-  "Return a list of transient infix definitions for setting gptel
-directives.
+  "Return a list of infix definitions for setting gptel directives.
 
 SYM is the symbol whose value is set to the selected directive..
 MSG is the meaning of symbol, used when messaging.
@@ -1156,7 +1172,7 @@ only (\"oneshot\")."
   (interactive)
   (transient-setup
    'gptel-tools nil nil
-   :scope (list :tools (mapcar (lambda (tool) (list (gptel-tool-category tool)
+   :scope (list :tools (mapcar (lambda (tool) (list (or (gptel-tool-category tool) "misc")
                                                (gptel-tool-name tool)))
                                gptel-tools))))
 
@@ -1206,8 +1222,8 @@ value of `gptel-use-context', set from here."
   "Number of recent messages to send with each exchange.
 
 By default, the full conversation history is sent with every new
-prompt. This retains the full context of the conversation, but
-can be expensive in token size. Set how many recent messages to
+prompt.  This retains the full context of the conversation, but
+can be expensive in token size.  Set how many recent messages to
 include."
   :description "previous responses"
   :class 'gptel-lisp-variable
@@ -1222,7 +1238,7 @@ include."
 (transient-define-infix gptel--infix-max-tokens ()
   "Max tokens per response.
 
-This is roughly the number of words in the response. 100-300 is a
+This is roughly the number of words in the response.  100-300 is a
 reasonable range for short answers, 400 or more for longer
 responses."
   :description "Response length (tokens)"
@@ -1234,6 +1250,7 @@ responses."
   :prompt "Response length in tokens (leave empty: default, 80-200: short, 200-500: long): "
   :reader 'gptel--transient-read-number)
 
+;; TODO(links): Run `gptel-refresh-buffer-hook' after a model change
 (transient-define-infix gptel--infix-provider ()
   "AI Provider for Chat."
   :description "Model"
@@ -1312,23 +1329,27 @@ querying the LLM."
   :display-if-false "No"
   :key "-R")
 
-(transient-define-infix gptel--infix-track-media ()
-  "Send media from \"standalone\" links in the prompt.
+(transient-define-suffix gptel--infix-track-media ()
+  "Send media from links in the prompt.
 
-When the active `gptel-model' supports it, gptel can send images
-or other media from links in the buffer to the LLM.  Only
-\"standalone\" links are considered: these are links on their own
-line with no surrounding text.
-
-What link types are sent depends on the mime-types the model
+gptel can send images or other media from links in the buffer to the
+LLM.  What link types are sent depends on the mime-types the model
 supports.  See `gptel-track-media' for more information."
   :description "Send media from links"
+  :transient t
   :class 'gptel--switches
   :variable 'gptel-track-media
   :set-value #'gptel--set-with-scope
   :display-if-true "Yes"
   :display-if-false "No"
-  :key "-I")
+  :key "-I"
+  (interactive)
+  (let ((obj (transient-suffix-object)))
+    (transient-infix-set obj (transient-infix-read obj))
+    (transient--show))
+  (if gptel-track-media
+      (run-hooks 'gptel-refresh-buffer-hook)
+    (gptel--annotate-link-clear)))
 
 ;; ** Infixes for adding and removing context
 
@@ -1611,7 +1632,6 @@ This sets the variable `gptel-include-tool-results', which see."
               (pcase resp
                 ((pred stringp) (message "%s response: %s" backend-name resp))
                 (`(tool-call . ,tool-calls) (gptel--display-tool-calls tool-calls info 'minibuffer))
-                (`(tool-result . ,tool-results) (gptel--display-tool-results tool-results info))
                 (_ (when (and (null resp) (plist-get info :error))
                      (message "%s response error: %s"
                               backend-name (plist-get info :status))))))))
@@ -1619,16 +1639,21 @@ This sets the variable `gptel-include-tool-results', which see."
       (setq redirect-output t)
       (setq stream nil)
       (setq callback
-            (lambda (resp info &optional _raw)
-              (pcase resp
-                ((pred stringp) (kill-new resp)
-                 (message "%s response: \"%s\" copied to kill-ring." backend-name
-                          (truncate-string-to-width resp 30)))
-                (`(tool-call . ,tool-calls) (gptel--display-tool-calls tool-calls info 'minibuffer))
-                (`(tool-result . ,tool-results) (gptel--display-tool-results tool-results info))
-                (_ (when (and (null resp) (plist-get info :error))
-                     (message "%s response error: %s" backend-name
-                              (plist-get info :status))))))))
+            (let ((accum))
+              (lambda (resp info &optional _raw)
+                (pcase resp
+                  ((pred stringp) (push resp accum)
+                   (unless (plist-get info :tool-use)
+                     (kill-new (apply #'concat (nreverse accum)))
+                     (message "%s response: \"%s\" copied to kill-ring." backend-name
+                              (truncate-string-to-width resp 30 nil nil t))))
+                  (`(tool-call . ,tool-calls) (gptel--display-tool-calls tool-calls info 'minibuffer))
+                  (_ (when (and (null resp) (plist-get info :error))
+                       (if accum (kill-new (apply #'concat (nreverse accum))))
+                       (message
+                        (concat "%s response error: %s."
+                                (and accum "  Partial response copied to kill-ring."))
+                                backend-name (plist-get info :status)))))))))
      ((setq gptel-buffer-name
             (cl-some (lambda (s) (and (stringp s) (string-prefix-p "g" s)
                                  (substring s 1)))
@@ -1656,7 +1681,7 @@ This sets the variable `gptel-include-tool-results', which see."
                   (buffer-local-value 'major-mode gptel-buffer)
                 gptel-default-mode)))
         ;; Add code fences or Org src markers around the reduced-prompt
-        (cond ((eq major-mode gptel-buffer-mode))
+        (cond ((and (stringp prompt) (eq major-mode gptel-buffer-mode)))
               ((provided-mode-derived-p gptel-buffer-mode 'org-mode)
                (setq reduced-prompt
                      (if (consp reduced-prompt);either (region . prompt) or prompt
@@ -1775,7 +1800,7 @@ for details."
   (setq full (or full gptel--system-message))
   (cl-typecase full
     (string (concat full "\n\n" additional))
-    (list (let ((copy (copy-sequence full)))
+    (cons (let ((copy (copy-sequence full)))
             (setcar copy (concat (car copy) "\n\n" additional))
             copy))
     (function (lambda () (gptel--merge-additional-directive
