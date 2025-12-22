@@ -1516,7 +1516,54 @@ tool call results should be included in the LLM response.  See
 [[#additional-configuration][Additional Configuration]] for doing these things
 via elisp.
 
+<<<<<<< HEAD
 #+html: </details> #+html: <details><summary>
+||||||| 73144b7
+Alternatively, you can add/remove tools via
+
+- Elisp, see [[#additional-configuration][Additional Configuration]].
+- gptel presets, see [[#option-presets][Option presets]].
+
+#+html: </details>
+#+html: <details><summary>
+**** LLM tool collections
+#+html: </summary>
+
+The following repositories provide collections of tools written by gptel users.
+
+- [[https://github.com/skissue/llm-tool-collection][llm-tool-collection]] :: A community collection of tools for use with LLM clients in Emacs. To discuss tools, check out the [[https://github.com/skissue/llm-tool-collection/discussions][discussions page]].
+- [[https://github.com/positron-solutions/ragmacs][ragmacs]] :: A collection of tools for Emacs introspection.
+- [[https://github.com/ultronozm/codel.el][codel.el]] :: A collection of code editing tools.
+- [[https://codeberg.org/bajsicki/gptel-org-tools][gptel-org-tools]] :: Tools for interacting with Org files.
+- [[https://github.com/munen/emacs.d?tab=readme-ov-file#tool-use][Alain Lafon’s tool collection]]
+
+#+html: </details>
+#+html: <details><summary>
+=======
+Alternatively, you can add/remove tools via
+
+- Elisp, see [[#additional-configuration][Additional Configuration]].
+- gptel presets, see [[#option-presets][Option presets]].
+
+#+html: </details>
+#+html: <details><summary>
+**** LLM tool collections
+#+html: </summary>
+
+The following repositories provide collections of tools written by gptel users.
+
+- [[https://github.com/skissue/llm-tool-collection][llm-tool-collection]] :: A community collection of tools for use with LLM clients in Emacs.  Includes LLM tools for interacting with files, Emacs buffers and running system commands.
+- [[https://github.com/karthink/gptel-agent][gptel-agent]] :: A collection of tools meant for agentic LLM use.  Includes tools for filesystem access and manipulation, running Bash commands, Emacs introspection and Elisp evaluation, web search and YouTube.
+- [[https://github.com/ultronozm/codel.el][codel.el]] :: A collection of code editing tools.
+- [[https://codeberg.org/bajsicki/gptel-org-tools][gptel-org-tools]] :: Tools for interacting with Org files.
+- [[https://github.com/positron-solutions/ragmacs][ragmacs]] :: A collection of tools for Emacs introspection.
+- [[https://github.com/munen/emacs.d?tab=readme-ov-file#tool-use][Alain Lafon’s tool collection]]
+
+Additionally, the [[https://github.com/karthink/gptel/wiki/Tools-collection][wiki has some examples]] of common tools.  These are not maintained, but might serve instructional when writing custom tools.
+
+#+html: </details>
+#+html: <details><summary>
+>>>>>>> master
 **** Model Context Protocol (MCP) integration
 #+html: </summary>
 
@@ -2112,8 +2159,15 @@ not chained.
 
 *Agentic use*: Use LLMs as agents, with tool-use
 
+<<<<<<< HEAD
 - [[https://github.com/kmontag/macher][Macher]]: Project-aware multi-file LLM
   editing for Emacs.
+||||||| 73144b7
+- [[https://github.com/kmontag/macher][Macher]]: Project-aware multi-file LLM editing for Emacs.
+=======
+- [[https://github.com/kmontag/macher][Macher]]: Project-aware multi-file LLM editing for Emacs.
+- [[https://github.com/karthink/gptel-agent][gptel-agent]]: Tools, presets and configuration for general agentic LLM use.
+>>>>>>> master
 
 *Text completion*
 
@@ -2122,6 +2176,7 @@ not chained.
 
 *Integration with major-modes*
 
+<<<<<<< HEAD
 - [[https://github.com/jwiegley/ob-gptel][ob-gptel]]: Org-babel backend for
   running gptel queries.
 - [[https://github.com/kamushadenes/ai-blog.el][ai-blog.el]]: Streamline
@@ -2132,6 +2187,20 @@ not chained.
   messages within magit-status Buffer using gptel.
 - [[https://github.com/ragnard/gptel-magit/][gptel-magit]]: Generate commit
   messages for magit using gptel.
+||||||| 73144b7
+- [[https://github.com/jwiegley/ob-gptel][ob-gptel]]: Org-babel backend for running gptel queries.
+- [[https://github.com/kamushadenes/ai-blog.el][ai-blog.el]]: Streamline generation of blog posts in Hugo.
+- [[https://github.com/lakkiy/gptel-commit][gptel-commit]]: Generate commit messages using gptel.
+- [[https://github.com/douo/magit-gptcommit][magit-gptcommit]]: Generate commit messages within magit-status Buffer using gptel.
+- [[https://github.com/ragnard/gptel-magit/][gptel-magit]]: Generate commit messages for magit using gptel.
+=======
+- [[https://github.com/jwiegley/ob-gptel][ob-gptel]]: Org-babel backend for running gptel queries.
+- [[https://github.com/kamushadenes/ai-blog.el][ai-blog.el]]: Streamline generation of blog posts in Hugo.
+- [[https://github.com/lakkiy/gptel-commit][gptel-commit]]: Generate commit messages using gptel.
+- [[https://github.com/douo/magit-gptcommit][magit-gptcommit]]: Generate commit messages within magit-status Buffer using gptel.
+- [[https://github.com/ragnard/gptel-magit/][gptel-magit]]: Generate commit messages for magit using gptel.
+- [[https://github.com/ArthurHeymans/gptel-forge-prs][gptel-forge-prs]]: Generate pull request message for forge using gptel.
+>>>>>>> master
 
 *Chat interface addons*
 
